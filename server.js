@@ -6,33 +6,30 @@ const cors = require('cors');
 
 const app = express();
 const upload = multer();
+const PORT = process.env.PORT || 10000;
+
 app.use(cors());
-app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send('✅ Catbox proxy is running!');
-});
-
-app.post('/upload', upload.single('file'), async (req, res) => {
+app.post('/upload', upload.single('fileToUpload'), async (req, res) => {
   try {
-    const form = new FormData();
-    form.append('reqtype', 'fileupload');
-    form.append('userhash', req.body.userhash);
-    form.append('fileToUpload', req.file.buffer, 'upload.png');
+    const formData = new FormData();
+    formData.append('reqtype', 'fileupload');
+    formData.append('userhash', process.env.CATBOX_USERHASH); // stored safely
+    formData.append('fileToUpload', req.file.buffer, req.file.originalname);
 
     const response = await fetch('https://catbox.moe/user/api.php', {
       method: 'POST',
-      body: form
+      body: formData
     });
 
-    const result = await response.text();
-    res.json({ url: result.trim() });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+    const text = await response.text();
+    res.send(text);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Internal Server Error');
   }
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Proxy running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`Proxy running on port ${PORT}`);
 });
