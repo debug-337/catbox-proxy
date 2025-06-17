@@ -1,35 +1,43 @@
 const express = require('express');
 const multer = require('multer');
 const fetch = require('node-fetch');
-const FormData = require('form-data');
-const cors = require('cors');
 
 const app = express();
 const upload = multer();
-const PORT = process.env.PORT || 10000;
 
-app.use(cors());
+const USER_HASH = '26157003508071abe008d2b03';
 
-app.post('/upload', upload.single('fileToUpload'), async (req, res) => {
+app.use(express.json());
+
+app.post('/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('No file uploaded');
+  }
+
   try {
-    const formData = new FormData();
+    const formData = new URLSearchParams();
     formData.append('reqtype', 'fileupload');
-    formData.append('userhash', process.env.CATBOX_USERHASH); // stored safely
-    formData.append('fileToUpload', req.file.buffer, req.file.originalname);
+    formData.append('userhash', USER_HASH);
+    formData.append('fileToUpload', req.file.buffer, {
+      filename: req.file.originalname,
+      contentType: req.file.mimetype,
+    });
 
     const response = await fetch('https://catbox.moe/user/api.php', {
       method: 'POST',
-      body: formData
+      body: formData,
     });
+
+    if (!response.ok) {
+      return res.status(500).send('Upload failed');
+    }
 
     const text = await response.text();
     res.send(text);
   } catch (err) {
-    console.error(err);
-    res.status(500).send('Internal Server Error');
+    res.status(500).send(`Server error: ${err.message}`);
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Proxy running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
